@@ -14,6 +14,9 @@
 		2A0EEC492034D2960063741C /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2A0EEC472034D2960063741C /* LaunchScreen.storyboard */; };
 		2A0EEC4C2034D2960063741C /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 2A0EEC4B2034D2960063741C /* main.m */; };
 		2A0EEC542034D5F00063741C /* Speech.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2A0EEC532034D5E20063741C /* Speech.framework */; };
+		2A33D8D32047461100302BA4 /* MessageRecognizer.m in Sources */ = {isa = PBXBuildFile; fileRef = 2A33D8D22047461100302BA4 /* MessageRecognizer.m */; };
+		2A33D8D72047465800302BA4 /* SpeechRecognizer.m in Sources */ = {isa = PBXBuildFile; fileRef = 2A33D8D62047465800302BA4 /* SpeechRecognizer.m */; };
+		2A33D8DA2047472E00302BA4 /* SpeechSession.m in Sources */ = {isa = PBXBuildFile; fileRef = 2A33D8D92047472E00302BA4 /* SpeechSession.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +31,12 @@
 		2A0EEC4A2034D2960063741C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		2A0EEC4B2034D2960063741C /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		2A0EEC532034D5E20063741C /* Speech.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Speech.framework; path = System/Library/Frameworks/Speech.framework; sourceTree = SDKROOT; };
+		2A33D8D12047461100302BA4 /* MessageRecognizer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MessageRecognizer.h; sourceTree = "<group>"; };
+		2A33D8D22047461100302BA4 /* MessageRecognizer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MessageRecognizer.m; sourceTree = "<group>"; };
+		2A33D8D52047465800302BA4 /* SpeechRecognizer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SpeechRecognizer.h; sourceTree = "<group>"; };
+		2A33D8D62047465800302BA4 /* SpeechRecognizer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SpeechRecognizer.m; sourceTree = "<group>"; };
+		2A33D8D82047472E00302BA4 /* SpeechSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SpeechSession.h; sourceTree = "<group>"; };
+		2A33D8D92047472E00302BA4 /* SpeechSession.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SpeechSession.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,6 +71,7 @@
 		2A0EEC3B2034D2960063741C /* Speech2Text */ = {
 			isa = PBXGroup;
 			children = (
+				2A33D8D42047462100302BA4 /* Core */,
 				2A0EEC3C2034D2960063741C /* AppDelegate.h */,
 				2A0EEC3D2034D2960063741C /* AppDelegate.m */,
 				2A0EEC3F2034D2960063741C /* ViewController.h */,
@@ -81,6 +91,19 @@
 				2A0EEC532034D5E20063741C /* Speech.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		2A33D8D42047462100302BA4 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				2A33D8D12047461100302BA4 /* MessageRecognizer.h */,
+				2A33D8D22047461100302BA4 /* MessageRecognizer.m */,
+				2A33D8D52047465800302BA4 /* SpeechRecognizer.h */,
+				2A33D8D62047465800302BA4 /* SpeechRecognizer.m */,
+				2A33D8D82047472E00302BA4 /* SpeechSession.h */,
+				2A33D8D92047472E00302BA4 /* SpeechSession.m */,
+			);
+			path = Core;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -154,9 +177,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2A33D8DA2047472E00302BA4 /* SpeechSession.m in Sources */,
 				2A0EEC412034D2960063741C /* ViewController.m in Sources */,
 				2A0EEC4C2034D2960063741C /* main.m in Sources */,
 				2A0EEC3E2034D2960063741C /* AppDelegate.m in Sources */,
+				2A33D8D72047465800302BA4 /* SpeechRecognizer.m in Sources */,
+				2A33D8D32047461100302BA4 /* MessageRecognizer.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

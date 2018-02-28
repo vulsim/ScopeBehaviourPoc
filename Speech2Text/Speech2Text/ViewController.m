@@ -7,15 +7,13 @@
 //
 
 #import "ViewController.h"
-#import <Speech/Speech.h>
+#import "MessageRecognizer.h"
 
-@interface ViewController () <SFSpeechRecognizerDelegate>
+@interface ViewController ()
 
 @property (nonatomic, weak) IBOutlet UITextView *textView;
-@property (nonatomic, strong) SFSpeechRecognizer *speechRecognizer;
-@property (nonatomic, strong) SFSpeechRecognitionTask *recognitionTask;
-@property (nonatomic, weak) SFSpeechAudioBufferRecognitionRequest *recognitionRequest;
-@property (nonatomic, strong) AVAudioEngine *audioEngine;
+@property (nonatomic, weak) IBOutlet UITextView *debugTextView;
+@property (nonatomic, strong) MessageRecognizer *recognizer;
 
 @end
 
@@ -23,73 +21,31 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    
-    self.speechRecognizer = [[SFSpeechRecognizer alloc] initWithLocale:[NSLocale localeWithLocaleIdentifier:@"ru_RU"]];
-    self.speechRecognizer.delegate = self;
-    self.audioEngine = [[AVAudioEngine alloc] init];
+    self.debugTextView.text = nil;
     
     __weak typeof(self) weakSelf = self;
     
-    [SFSpeechRecognizer requestAuthorization:^(SFSpeechRecognizerAuthorizationStatus status) {
-        if (status == SFSpeechRecognizerAuthorizationStatusAuthorized) {
-            [weakSelf initializeSpeechRecognizer];
-            [weakSelf startRecording];
+    self.recognizer = [[MessageRecognizer alloc] initWithLocale:[NSLocale localeWithLocaleIdentifier:@"ru_RU"]];
+    
+    self.recognizer.beginMessage = ^(NSString *transcription) {
+        weakSelf.textView.text = transcription;
+    };
+    
+    self.recognizer.continueMessage = ^(NSString *transcription) {
+        weakSelf.textView.text = transcription;
+    };
+    
+    self.recognizer.endMessage = ^(NSString *transcription) {
+        weakSelf.textView.text = nil;
+        
+        if (weakSelf.debugTextView.text.length) {
+            weakSelf.debugTextView.text = [NSString stringWithFormat:@"%@\nMessage: %@", weakSelf.debugTextView.text, transcription];
+        } else {
+            weakSelf.debugTextView.text = [NSString stringWithFormat:@"Message: %@", transcription];
         }
-    }];
-}
-
-- (void)initializeSpeechRecognizer {
-    NSError *error = nil;
-
-    AVAudioSession *audioSession = [AVAudioSession sharedInstance];
-    [audioSession setCategory:AVAudioSessionCategoryRecord error:&error];
-    [audioSession setMode:AVAudioSessionModeMeasurement error:&error];
-    [audioSession setActive:true withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation  error:&error];
+    };
     
-    if (error || !self.audioEngine.inputNode) {
-        return;
-    }
-    
-    __weak typeof(self) weakSelf = self;
-    
-    [self.audioEngine.inputNode installTapOnBus:0
-                                     bufferSize:1024
-                                         format:[self.audioEngine.inputNode inputFormatForBus:0]
-                                          block:^(AVAudioPCMBuffer * _Nonnull buffer, AVAudioTime * _Nonnull when) {
-                                              [weakSelf.recognitionRequest appendAudioPCMBuffer:buffer];
-                                          }];
-}
-
-- (void)startRecording {
-    SFSpeechAudioBufferRecognitionRequest *recognitionRequest = [[SFSpeechAudioBufferRecognitionRequest alloc] init];
-    recognitionRequest.shouldReportPartialResults = YES;
-    
-    __weak typeof(self) weakSelf = self;
-    
-    self.recognitionRequest = recognitionRequest;
-    self.recognitionTask = [self.speechRecognizer recognitionTaskWithRequest:recognitionRequest
-                                                               resultHandler:^(SFSpeechRecognitionResult * _Nullable result, NSError * _Nullable error) {
-                                                                   if (result) {
-                                                                       weakSelf.textView.text = result.bestTranscription.formattedString;
-                                                                   }
-                                                                   
-                                                                   if (error || result.isFinal) {
-                                                                       [weakSelf stopRecording];
-                                                                   }
-                                                               }];
-    [self.audioEngine startAndReturnError:nil];
-}
-
-- (void)stopRecording {
-    [self.audioEngine stop];
-    self.recognitionRequest = nil;
-    self.recognitionTask = nil;
-}
-
-#pragma mark - SFSpeechRecognizerDelegate
-
-- (void)speechRecognizer:(SFSpeechRecognizer *)speechRecognizer availabilityDidChange:(BOOL)available {
-    
+    [self.recognizer start];
 }
 
 @end
