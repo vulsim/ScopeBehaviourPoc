@@ -14,6 +14,7 @@
 @property (nonatomic, assign) BOOL isStarted;
 @property (nonatomic, strong) SpeechRecognizer *recognizer;
 @property (nonatomic, weak) NSTimer *barrierTimer;
+@property (nonatomic, weak) NSTimer *sessionTimer;
 
 @end
 
@@ -49,16 +50,25 @@
     
     __weak typeof(self) weakSelf = self;
     
-    [NSTimer scheduledTimerWithTimeInterval:1.0f repeats:NO block:^(NSTimer * _Nonnull timer) {
-        [weakSelf.recognizer pendingSessionWithTimeout:30.0f completion:^(NSError *error, SpeechSession *session) {
+    [NSTimer scheduledTimerWithTimeInterval:0.5f repeats:NO block:^(NSTimer * _Nonnull timer) {
+        [weakSelf.recognizer pendingSessionWithTimeout:3.0f completion:^(NSError *error, SpeechSession *session) {
             __strong typeof(self) strongSelf = weakSelf;
             
             if (error) {
-                [strongSelf schedule];
-                return;
+                NSLog(@"%@", error);
             }
             
             if (session) {
+                strongSelf.sessionTimer = [NSTimer scheduledTimerWithTimeInterval:30.0f repeats:NO block:^(NSTimer * _Nonnull timer) {
+                    [strongSelf.barrierTimer invalidate];
+                    [strongSelf.recognizer cleanup];
+                }];
+                
+                strongSelf.barrierTimer = [NSTimer scheduledTimerWithTimeInterval:1.0f repeats:NO block:^(NSTimer * _Nonnull timer) {
+                    [strongSelf.sessionTimer invalidate];
+                    [strongSelf.recognizer cleanup];
+                }];
+                
                 if (strongSelf.beginMessage) {
                     strongSelf.beginMessage(session.transcription);
                 }
@@ -79,18 +89,14 @@
                         }
                         
                         strongSelf.barrierTimer = [NSTimer scheduledTimerWithTimeInterval:2.0f repeats:NO block:^(NSTimer * _Nonnull timer) {
-                            __strong typeof(self) strongSelf = weakSelf;
-                            
-                            [strongSelf.recognizer clearSession];
-                            
-                            if (strongSelf.endMessage) {
-                                strongSelf.endMessage(transcription);
-                            }
-                            
-                            [strongSelf schedule];
+                            [strongSelf.sessionTimer invalidate];
+                            [strongSelf.recognizer cleanup];                            
                         }];
                     }
                 };
+            } else {
+                [strongSelf.recognizer cleanup];
+                [strongSelf schedule];
             }
         }];
     }];

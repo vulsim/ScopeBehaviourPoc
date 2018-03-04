@@ -14,6 +14,7 @@
 @interface SpeechSession (Private)
 
 @property (nonatomic, strong) SFSpeechRecognitionTask *recognitionTask;
+@property (nonatomic, strong) SFSpeechAudioBufferRecognitionRequest *recognitionRequest;
 
 - (void)setTranscription:(NSString *)transcription isFinal:(BOOL)isFinal;
 
@@ -52,15 +53,16 @@
 }
 
 - (void)dealloc {
-    [self clearSession];
+    [self cleanup];
+    [self finalizeAudioSession];
 }
 
 - (void)initializeAudioSession {
     NSError *error = nil;
     
     AVAudioSession *audioSession = [AVAudioSession sharedInstance];
-    [audioSession setCategory:AVAudioSessionCategoryRecord error:&error];
-    [audioSession setMode:AVAudioSessionModeMeasurement error:&error];
+    [audioSession setCategory:AVAudioSessionCategoryPlayAndRecord error:&error];
+    [audioSession setMode:AVAudioSessionModeDefault error:&error];
     [audioSession setActive:true withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:&error];
     
     if (error) {
@@ -77,87 +79,106 @@
         return;
     }
     
+    __weak typeof(self) weakSelf = self;
+    
+    [self.audioEngine prepare];
+    [self.audioEngine.inputNode installTapOnBus:0
+                                     bufferSize:1024
+                                         format:[self.audioEngine.inputNode inputFormatForBus:0]
+                                          block:^(AVAudioPCMBuffer * _Nonnull buffer, AVAudioTime * _Nonnull when) {
+                                              [weakSelf.session.recognitionRequest appendAudioPCMBuffer:buffer];
+                                          }];
+    
     self.isInitialized = YES;
+}
+
+- (void)finalizeAudioSession {
+    [self.audioEngine.inputNode removeTapOnBus:0];
+    self.isInitialized = NO;
 }
 
 - (void)pendingSessionWithTimeout:(NSTimeInterval)timeout
                        completion:(void (^)(NSError *error, SpeechSession *session))completion {
     
-    __block void (^pendingResult)(NSError *error, SpeechSession *session) = completion;
-    
-    if (!pendingResult) {
+    if (!completion) {
         return;
     }
     
     if (!self.isInitialized) {
-        pendingResult([self errorWithCode:1003 message:@"Speech recognizer not initialized."], nil);
+        completion([self errorWithCode:1003 message:@"Speech recognizer not initialized."], nil);
         return;
     }
     
     if (self.session) {
-        pendingResult([self errorWithCode:1003 message:@"Only one session can be started simultaneously."], nil);
+        completion([self errorWithCode:1003 message:@"Only one session can be started simultaneously."], nil);
         return;
     }
     
     __weak typeof(self) weakSelf = self;
-    
+    __weak NSTimer *pendingTimer = nil;
+    __block BOOL alreadyDone = NO;
+
     SFSpeechAudioBufferRecognitionRequest *recognitionRequest = [[SFSpeechAudioBufferRecognitionRequest alloc] init];
     recognitionRequest.shouldReportPartialResults = YES;
+    recognitionRequest.taskHint = SFSpeechRecognitionTaskHintDictation;
     
-    [self.audioEngine.inputNode installTapOnBus:0
-                                     bufferSize:1024
-                                         format:[self.audioEngine.inputNode inputFormatForBus:0]
-                                          block:^(AVAudioPCMBuffer * _Nonnull buffer, AVAudioTime * _Nonnull when) {
-                                              [recognitionRequest appendAudioPCMBuffer:buffer];
-                                          }];
+    SpeechSession *session = [[SpeechSession alloc] init];
 
-    self.session = [[SpeechSession alloc] init];
+    self.session = session;
+    self.session.recognitionRequest = recognitionRequest;
     self.session.recognitionTask = [self.recognizer recognitionTaskWithRequest:recognitionRequest
                                                                resultHandler:^(SFSpeechRecognitionResult * _Nullable result, NSError * _Nullable error) {
                                                                    __strong typeof(self) strongSelf = weakSelf;
+                                                                   [pendingTimer invalidate];
                                                                    
                                                                    if (result) {
-                                                                       [strongSelf.session setTranscription:result.bestTranscription.formattedString
-                                                                                                    isFinal:result.isFinal];
+                                                                       NSLog(@"%d, %@", result.isFinal, result.bestTranscription.formattedString);
+                                                                       [session setTranscription:result.bestTranscription.formattedString
+                                                                                         isFinal:result.isFinal];
                                                                    }
                                                                    
-                                                                   if (pendingResult) {
-                                                                       pendingResult(error, error ? nil : strongSelf.session);
-                                                                       pendingResult = nil;
+                                                                   if (!alreadyDone) {
+                                                                       alreadyDone = YES;
+                                                                       
+                                                                       if (!error && !result) {
+                                                                           completion([strongSelf errorWithCode:1004 message:@"Timeout expired."], nil);
+                                                                       } else {
+                                                                           completion(error, result ? session : nil);
+                                                                       }
                                                                    }
                                                                    
                                                                    if (error || result.isFinal) {
-                                                                       [strongSelf clearSession];
+                                                                       [strongSelf cleanup];
                                                                    }
                                                                }];
     
     NSError *error = nil;
+    
+    NSLog(@"Start");
     [self.audioEngine startAndReturnError:&error];
     
     if (error) {
-        if (pendingResult) {
-            pendingResult(error, nil);
-        }
-        [self clearSession];
+        alreadyDone = YES;
+        completion(error, nil);
+        [self cleanup];
         return;
     }
     
-    [NSTimer scheduledTimerWithTimeInterval:timeout repeats:NO block:^(NSTimer * _Nonnull timer) {
-        __strong typeof(self) strongSelf = weakSelf;
-        
-        [strongSelf clearSession];
-        
-        if (pendingResult) {
-            pendingResult([strongSelf errorWithCode:1004 message:@"Timeout expired."], nil);
-            pendingResult = nil;
-        }
+    pendingTimer = [NSTimer scheduledTimerWithTimeInterval:timeout repeats:NO block:^(NSTimer * _Nonnull timer) {
+        [weakSelf cleanup];
     }];
 }
 
-- (void)clearSession {
+- (void)cleanup {
+    if (!self.session) {
+        return;
+    }
+    
+    NSLog(@"Stop");
+    [self.session.recognitionRequest endAudio];
     [self.audioEngine stop];
-    [self.audioEngine.inputNode removeTapOnBus:0];
-    [self.session.recognitionTask cancel];
+    
+    self.session.recognitionRequest = nil;
     self.session.recognitionTask = nil;
     self.session = nil;
 }

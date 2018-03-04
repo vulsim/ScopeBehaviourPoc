@@ -18,6 +18,6 @@
 - (void)pendingSessionWithTimeout:(NSTimeInterval)timeout
                        completion:(void (^)(NSError *error, SpeechSession *session))completion;
 
-- (void)clearSession;
+- (void)cleanup;
 
 @end

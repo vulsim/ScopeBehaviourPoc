@@ -14,6 +14,7 @@
 @property (nonatomic, assign) BOOL isFinal;
 @property (nonatomic, strong) NSString *transcription;
 @property (nonatomic, strong) SFSpeechRecognitionTask *recognitionTask;
+@property (nonatomic, strong) SFSpeechAudioBufferRecognitionRequest *recognitionRequest;
 
 @end
 
